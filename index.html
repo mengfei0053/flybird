@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        canvas{
+            position: absolute;
+            left:50%;
+            margin-left: -400px;
+
+        }
+    </style>
+    <link rel="stylesheet" href="css/canvas.css">
+    <script src="js/util.js"></script>
+    <script src="js/pipe.js"></script>
+    <script src="js/land.js"></script>
+    <script src="js/sky.js"></script>
+    <script src="js/bird.js"></script>
+</head>
+<body>
+
+<div class='container'>
+    <canvas width="800" height="600" style="border: 1px solid red;"></canvas>
+    <div class='start'>
+        <div class="count"></div>
+        <div class="start-btn">START</div>
+    </div>
+    <div class="end">
+        <p>GAME OVER</p>
+        <div class="restart">
+            RESTART
+        </div>
+    </div>
+    <div class="score">0</div>
+</div>
+
+<script src="js/flybird.js"></script>
+<script>
+
+//    (function () {
+//        var canvas = document.querySelector('canvas');
+//        var ctx= canvas.getContext('2d');
+//        var birdImg = new Image();
+//        var num = 0;
+//        birdImg.addEventListener('load', function () {
+////            var bird = new Bird(ctx,birdImg,0,0,52,45,50,50,52,45);
+//            //ctx,birdImg,frameIndex,direction,clipW,clipH,x,y,width,height
+//            var bird = new Bird({
+//                frameIndex : 0,
+//                direction : 0,
+//                clipX :0,
+//                clipY :0,
+//                x : 50,
+//                y : 50,
+//                birdImg : birdImg,
+//                ctx : ctx,
+//                clipW : 52,
+//                clipH : 45,
+//                speed :1
+//            });
+//
+//            canvas.addEventListener('click', function () {
+//               bird.options.speed = -3;
+//            });
+//
+//           console.log(bird);
+////           console.log(canvas.width);
+////           console.log(canvas.height);
+//            setInterval(function () {
+//                ctx.clearRect(0,0,canvas.width,canvas.height);
+//                bird.draw();
+//                bird.updata();
+////                ctx.translate(num,0);
+////                num += 0.1;
+//            },1000/60);
+//            //绘制
+//        });
+//        birdImg.src = './imgs/birds.png';
+//    }());
+
+
+    (function () {
+
+
+        /*
+         * 当前遇到的问题：
+         * 需要加载3张图片，才能进行操作。
+         * 解决步骤：
+         * 1、把多张图片的加载路径存在一起(根据图片名字和路径，键值对的方式进行存储，方便将来使用)
+         * 2、然后遍历这些图片并进行加载(注意，每一个路径对应一个图片对象)
+         * 3、为了防止遍历过程中，这些图片对象丢失，所以需要有个一个对象用来存储这些图片对象
+         * */
+        var startBtn = document.querySelector('.start-btn');
+        // console.log(startBtn);
+        var startCount = document.querySelector('.count');
+        var start = document.querySelector('.start');
+        var end = document.querySelector('.end');
+        var reStart = document.querySelector('.restart');
+        var score = document.querySelector('.score');
+
+        var imgPaths = {
+            'bird' : './imgs/birds.png',
+            'downPipe' : './imgs/pipeDown.png',
+            'upPipe' : './imgs/pipeUp.png',
+            'land' : './imgs/land.png',
+            'sky' : './imgs/sky.png'
+        };
+
+        var imgObj = {};
+        var imgLoadCount = 0;
+
+        for (var key in imgPaths) {
+            var tempImg = new Image();
+            imgObj[key] = tempImg;
+            tempImg.addEventListener('load', function () {
+               imgLoadCount++;
+                if(imgLoadCount >= 5) {
+                    main();
+                }
+
+            });
+
+            tempImg.src = imgPaths[key];
+        }
+
+        function main() {
+            var canvas = document.querySelector('canvas');
+            var ctx= canvas.getContext('2d');
+            //var bird = new Bird(ctx,birdImg,0,0,52,45,50,50,52,45);
+            //ctx,birdImg,frameIndex,direction,clipW,clipH,x,y,width,height
+            var bird = new Bird({
+                frameIndex : 0,
+                direction : 0,
+                clipX :0,
+                clipY :0,
+                x : 50,
+                y : 50,
+                birdImg : imgObj['bird'],
+                ctx : ctx,
+                clipW : 52,
+                clipH : 45,
+                speed :1
+            });
+
+            var objPipes = [];
+            for (var i = 0; i < 6; i++) {
+                var pipe = new Pipe({
+                    ctx :ctx,
+                    upPipe : imgObj['upPipe'],
+                    downPipe : imgObj['downPipe'],
+                    x : imgObj['upPipe'].width*3*i + 200,
+                    speed : -1
+                });
+                objPipes.push(pipe);
+            }
+
+            console.log(objPipes);
+
+            var lands = [];
+            for (var i = 0; i < 4; i++) {
+                var land = new Land({
+                    ctx :ctx,
+                    canvas : canvas,
+                    landImg : imgObj['land'],
+                    x : imgObj['land'].width*i,
+                    y : canvas.height - imgObj['land'].height,
+                    speed : -1
+                });
+                lands.push(land);
+            }
+            console.log(lands);
+
+            var sky = new Sky({
+                ctx :ctx,
+                canvas : canvas,
+                skyImg : imgObj['sky'],
+                x : 0,
+                y : 0,
+                speed : -1
+            });
+            // console.log(sky);
+
+            gamedraw(sky,objPipes,lands,bird);
+            //设置点击次数
+            var clickCount = 0;
+            var scoreNum = 0
+            startBtn.onclick = function () {
+                clickCount++;
+                if(clickCount == 1){
+                    var count = 5;
+                    startBtn.style.transition = 'all 1s';
+                    startBtn.style.opacity = 0;
+                    var timerStart = setInterval(function () {
+                        startCount.innerHTML = count;
+                        count--;
+                        ctx.clearRect(0,0,canvas.width,canvas.height);
+                        gamedraw(sky,objPipes,lands,bird);
+
+                        if(count < 0){
+                            clearInterval(timerStart);
+                            start.style.opacity = '0';
+                            start.style.display = 'none';
+                            var timer = setInterval(function () {
+                                score.innerHTML = scoreNum;
+                                scoreNum++;
+                                ctx.clearRect(0,0,canvas.width,canvas.height);
+
+                                gamedraw(sky,objPipes,lands,bird);
+                                gameUpdata(objPipes,lands,bird);
+                                if(ctx.isPointInPath(bird.options.x + bird.options.width / 2, bird.options.y + bird.options.height / 2)){
+                                    clearInterval(timer);
+                                    clickCount = 0;
+                                    end.style.display = 'block';
+                                    end.style.opacity = 1;
+                                }
+                                ctx.beginPath();
+
+                            },1000/60);
+                        }
+                    },1000)
+                }
+            };
+            reStart.onclick = function () {
+                location.reload();
+            };
+
+            canvas.addEventListener('click', function () {
+                bird.options.speed = -2;
+            })
+        }
+
+
+        //背景绘制函数
+        function gamedraw(sky,objPipes,lands,bird){
+            sky.draw();
+            for (var i = 0; i < 6; i++) {
+                objPipes[i].draw();
+            }
+            for( var i = 0; i < 4 ; i++){
+                lands[i].draw();
+            }
+            bird.draw();
+        }
+        //背景更新函数
+        function gameUpdata(objPipes,lands,bird){
+            for (var i = 0; i < 6; i++) {
+                objPipes[i].updata();
+            }
+            for( var i = 0; i < 4 ; i++){
+                lands[i].updata();
+            }
+            bird.updata();
+        }
+
+    })()
+
+
+
+</script>
+</body>
+</html>
